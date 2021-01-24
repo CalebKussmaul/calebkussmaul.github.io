@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PDF Cracker</title>
+</head>
+<style type="text/css">
+	body {
+		margin: 20pt;
+	}
+	h1 {
+		text-align: center;
+		font-family: sans-serif;
+	}
+</style>
+<body>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.5.207/build/pdf.min.js"></script>
+	<h1>SSN PDF Cracker</h1>
+	<p>This is demonstration of the lack of security in encrypting PDFs with a weak password - such as the last 4 digits of a SSN. A PDF is just a file, so unlike a website login there is no way to prevent an attacker from trying an unlimited number of passwords very quickly. Weak PDF passwords are a security risk because someone might treat the file as if it is protected when in reality it is not.<br><br><b>Note:</b> The PDF is not uploaded anywhere, and the password is guessed using javascript running locally in this web browser.<br><br><br>Select a pdf file to begin: <input id="browse_button" type="file" name="Select pdf" accept=".pdf"></p>
+	<p id="guess_num">...</p>
+	<div id="pdf_div">
+		<canvas id="pdf_canvas" width="500" height="500"></canvas>
+	</div>
+
+	<script type="text/javascript">
+		var browseButton = document.getElementById("browse_button");
+		var guessNum = document.getElementById("guess_num");
+		var canvas = document.getElementById("pdf_canvas");
+
+		function padZeros(number, digits) {
+			var string = ""+number;
+			return "0".repeat(Math.max(0, digits - string.length)) + string;
+		}
+
+		async function guessPassword(url, password) {
+			try {
+				const pdf = await pdfjsLib.getDocument({ url: url, password: password }).promise;
+				return pdf;
+			} catch(error) {
+				return null;
+			}
+		}
+
+		async function crackPassword(url) {
+			var start = new Date();
+			for (var i = 0; i < 10000; i++) {
+				var passGuess = padZeros(i, 4);
+				var pdf_doc = await guessPassword(url, passGuess);
+				if (pdf_doc !== null) {
+					var time = (new Date() - start)/1000;
+					guessNum.innerHTML = "Found password: " + passGuess + " in " + time + " seconds.";
+
+					pdf_doc.getPage(1).then(function(page) {
+						var viewport = page.getViewport({ scale: 1 });
+						var scale = canvas.width / viewport.width;
+						var scaledViewport = page.getViewport({ scale: scale });
+						page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport });
+					});
+					break;
+				} else {
+					guessNum.innerHTML = "Guessed: " + passGuess;
+					console.log("Incorrect: "+passGuess);
+				}
+			}
+		}
+
+		browseButton.addEventListener("change", (event) => {
+			var url = URL.createObjectURL(browseButton.files[0]);
+			crackPassword(url);
+		}); 
+	</script>
+</body>
+</html>
